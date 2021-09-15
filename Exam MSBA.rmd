@@ -1,0 +1,1295 @@
+---
+title: "Exam MSBA STA380"
+author: "Rushiil Deshmukh"
+date: "08/01/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Chapter 2 Problem 10
+
+## Part A
+```{r 2_10_1,echo=FALSE}
+library(MASS) ## a library of example datasets
+library(class) ## a library with lots of classification tools
+library(kknn) ## knn library
+
+attach(Boston)
+n = dim(Boston)
+n
+```
+The Dataset has 506 rows and 14 columns  
+
+The Variables are:  
+1. crim - per capita crime rate by town.  
+2. zn - Proportion of residential land zoned for lots over 25,000 sq.ft.  
+3. indus - Proportion of non-retail business acres per town.  
+4. chas - Charles River dummy variable (= 1 if tract bounds river; 0 otherwise).  
+5. nox - Nitrogen oxides concentration (parts per 10 million).  
+6. rm - Average number of rooms per dwelling.  
+7. age - Proportion of owner-occupied units built prior to 1940.  
+8. dis - Weighted mean of distances to five Boston employment centres.  
+9. rad - Index of accessibility to radial highways. 
+10. tax - Full-value property-tax rate per \$10,000.  
+11. ptratio - Pupil-teacher ratio by town.  
+12. black - 1000(Bk - 0.63)^2 where Bk is the proportion of blacks by town.  
+13. lstat - Lower status of the population (percent).  
+14. medv - Median value of owner-occupied homes in \$1000s.  
+
+## Part B
+```{r 2_10_2,echo=FALSE}
+pairs(Boston)
+```
+1. Higher tax for homes closer to radial highways (better connectivity)  
+2. Negative correlation between dis and nox i.e lower NO2 air near city centres   
+3. Higher ptratio indicates higher medv i.e Better neighborhoods have focused education   
+4. High crime in areas with high lstat i.e poorer neighborhoods  
+5. High rm indicates a higher medv due to bigger houses  
+6. Negative correlation between black and dis  
+
+## Part C
+```{r 2_10_3,echo=FALSE}
+hist(Boston$crim, breaks = 50)
+cor(Boston)
+```
+Most neighborhoods are crime free
+
+## Part D
+```{r 2_10_4,echo=FALSE}
+par(mfrow = c(1,3))
+hist(Boston$crim[Boston$crim>1], breaks = 25, main = "Crime rate/suburb", ylab = "crime")
+hist(Boston$tax, breaks = 25, main = "Tax/suburb", ylab = "Tax")
+hist(Boston$ptratio, breaks = 25, main = "PTR/suburb", ylab = "PT Ratio")
+```
+
+## Part E
+```{r 2_10_5,echo=FALSE}
+sum(Boston$chas == 1)
+```
+35 Suburbs are bound to the Charles River
+
+## Part F
+```{r 2_10_6,echo=FALSE}
+median(Boston$ptratio)
+```
+The Median Pupil Teacher Ratio is 19.05
+
+## Part G
+```{r 2_10_7,echo=FALSE}
+t(subset(Boston, medv == min(medv)))
+```
+Suburb number 5 has the lowest median housing value
+
+## Part H
+### Greater than 7 rooms
+```{r 2_10_8,echo=FALSE}
+sum(Boston$rm > 7)
+```
+### Greater than 8 rooms
+```{r 2_10_9,echo=FALSE}
+sum(Boston$rm > 8)
+```
+### Greater than 8 rooms - Summary 
+```{r 2_10_10,echo=FALSE}
+summary(subset(Boston, Boston$rm > 8))
+```
+Crime rates in these suburbs are low, Median housing value is very high and tax is higher too
+
+
+# Chapter 8 Problem 8
+
+## Part A
+```{r 8_8_1,echo=FALSE}
+rm(list = ls())
+library(tree)
+library(ISLR)
+attach(Carseats)
+
+set.seed(1)
+train = sample(1:nrow(Carseats), nrow(Carseats)/2)
+c_train = Carseats[train,]
+c_test = Carseats[-train,]
+dim(c_train)
+```
+Dimensions of the training set are: 200 rows, 11 columns
+
+## Part B
+```{r 8_8_2,echo=FALSE}
+tree.c = tree(Sales~., data = c_train)
+summary(tree.c)
+plot(tree.c)
+text(tree.c, pretty = 0)
+
+yhat = predict(tree.c, newdata = c_test)
+mean((yhat - c_test$Sales)^2)
+```
+ShelveLoc is the primary division variable, therefore the most important -
+variable. Followed by price. Therefore, if the Shelf location is bad, the sales 
+decrease because the part on the shelf may be deep in a warehouse
+
+The test MSE is 4.922
+
+## Part C
+### Cross Validation
+```{r 8_8_3,echo=FALSE}
+set.seed(1)
+par(mfrow=c(1,2))
+cv.carseats=cv.tree(tree.c)
+plot(cv.carseats$size,cv.carseats$dev,main = "CV plot",xlab="Nodes", ylab="Error in CV", type="b",)
+cv.carseats
+```
+Optimal level of tree nodes is 18, lowest $dev = 984, Pruning won't help
+
+### Pruning
+```{r 8_8_4,echo=FALSE}
+prune.carseats = prune.tree(tree.c, best = 18)
+plot(prune.carseats)
+text(prune.carseats, pretty=0)
+yhat = predict(prune.carseats, newdata = c_test)
+mean((yhat-c_test$Sales)^2)
+```
+Cross Validation MSE is 4.922
+Cross Validation proves that pruning the tree doesn't change the MSE
+
+## Part D
+```{r 8_8_5,echo=FALSE}
+library(randomForest)
+set.seed(1)
+bag.carseats = randomForest(Sales~.,data=c_train,mtry=10, importance=TRUE)
+yhat.bag = predict(bag.carseats, newdata=c_test)
+mean((yhat.bag - c_test$Sales)^2)
+
+importance(bag.carseats)
+varImpPlot(bag.carseats)
+```
+Price, Shelf Location and CompPrice are the three most important variables
+Bagging improves the test MSE, bringing it down to 2.6505253
+
+## Part E
+### m = 1
+```{r 8_8_6,echo=FALSE}
+set.seed(1)
+randfor.carseats = randomForest(Sales~.,data=c_train,mtry=1, importance=TRUE)
+yhat.randfor = predict(randfor.carseats, newdata=c_test)
+mean((yhat.randfor - c_test$Sales)^2)
+```
+Test MSE is 4.7475
+
+### m = 2
+```{r 8_8_7,echo=FALSE}
+set.seed(1)
+randfor.carseats = randomForest(Sales~.,data=c_train,mtry=2, importance=TRUE)
+yhat.randfor = predict(randfor.carseats, newdata=c_test)
+mean((yhat.randfor - c_test$Sales)^2)
+```
+Test MSE is 3.4015
+
+### m = sqrt(p)
+```{r 8_8_8,echo=FALSE}
+set.seed(1)
+randfor.carseats = randomForest(Sales~.,data=c_train,mtry=3, importance=TRUE)
+yhat.randfor = predict(randfor.carseats, newdata=c_test)
+mean((yhat.randfor - c_test$Sales)^2)
+
+importance(randfor.carseats)
+```
+Random Forest increases MSE.
+Price and Shelf Location are almost equally influential on MSE
+
+
+# Chapter 8 Problem 11
+
+## Part A
+```{r 8_11_1,echo=FALSE}
+rm(list = ls())
+library(tree)
+library(ISLR)
+library(gbm)
+library(kknn)
+set.seed(2)
+attach(Caravan)
+train = 1:1000
+Caravan$Purchase = ifelse(Caravan$Purchase == "Yes", 1, 0)
+crv_train = Caravan[train,]
+crv_test = Caravan[-train,]
+dim(crv_test)
+```
+Dimensions of the training set are: 4822 rows, 86 columns
+
+## Part B
+```{r 8_11_2,echo=FALSE}
+crv.boost = gbm(Purchase~.,data = crv_train,distribution = "gaussian",n.trees = 1000,shrinkage = 0.01)
+summary(crv.boost)
+
+yhat.boost=predict(crv.boost, newdata=crv_test,n.trees=1000)
+mean((yhat.boost-crv_test$Purchase)^2)
+```
+MSE is 0.0542
+PPERSAUT and MKOOPKL are the most impactful variables
+
+## Part C
+### Prediction
+```{r 8_11_3,echo=FALSE}
+purpro.test=predict(crv.boost,crv_test,n.trees=1000,type = "response")
+pred.test = ifelse(purpro.test>0.2,1,0)
+table(crv_test$Purchase,pred.test)
+```
+Fraction of people that might make a purchase is 0.2093 or 20.93%
+
+### KNN
+```{r 8_11_4,echo=FALSE}
+library(class)
+standardized.X= scale(Caravan [,-86])
+test=1:1000
+train.X= standardized.X[-test ,]
+test.X= standardized.X[test ,]
+train.Y=Caravan$Purchase [-test]
+test.Y=Caravan$Purchase [test]
+set.seed(1)
+knn.pred=knn(train.X,test.X,train.Y,k=10)
+mean(test.Y!=knn.pred)
+```
+MSE is 0.058
+It is apparent that the MSE value using knn is higher than that using boosted
+trees, therefore the boosting model fits the data better than k nearest 
+neighbours.
+
+
+# Chapter 3 Problem 15
+
+## Part A
+```{r 3_15_1,echo=FALSE}
+rm(list=ls())
+library(MASS)
+library(car)
+attach(Boston)
+names(Boston)
+```
+
+### Crim against lstat
+```{r 3_15_2,echo=FALSE}
+par(mfrow=c(2,2))
+lm.fit1=lm(crim~lstat)
+summary(lm.fit1)
+plot(lm.fit1)
+```
+
+### Crim against zn
+```{r 3_15_3,echo=FALSE}
+par(mfrow=c(2,2))
+lm.fit2=lm(crim~zn)
+summary(lm.fit2)
+plot(lm.fit2)
+```
+p value = 5.5e-6
+
+### Crim against indus
+```{r 3_15_4,echo=FALSE}
+par(mfrow=c(2,2))
+lm.fit3=lm(crim~indus)
+summary(lm.fit3)
+plot(lm.fit3)
+```
+
+### Crim against chas
+```{r 3_15_5,echo=FALSE}
+par(mfrow=c(2,2))
+chas = as.factor(chas)
+lm.fit4=lm(crim~chas)
+summary(lm.fit4)
+plot(lm.fit4)
+```
+
+### Crim against nox
+```{r 3_15_6,echo=FALSE}
+par(mfrow=c(2,2))
+lm.fit5=lm(crim~nox)
+summary(lm.fit5)
+plot(lm.fit5)
+```
+
+### Crim against rm
+```{r 3_15_7,echo=FALSE}
+par(mfrow=c(2,2))
+lm.fit6=lm(crim~rm)
+summary(lm.fit6)
+plot(lm.fit6)
+```
+
+### Crim against age
+```{r 3_15_8,echo=FALSE}
+par(mfrow=c(2,2))
+lm.fit7=lm(crim~age)
+summary(lm.fit7)
+plot(lm.fit7)
+```
+
+### Crim against dis
+```{r 3_15_9,echo=FALSE}
+par(mfrow=c(2,2))
+lm.fit8=lm(crim~dis)
+summary(lm.fit8)
+plot(lm.fit8)
+```
+
+### Crim against rad
+```{r 3_15_10,echo=FALSE}
+par(mfrow=c(2,2))
+lm.fit9=lm(crim~rad)
+summary(lm.fit9)
+plot(lm.fit9)
+```
+
+### Crim against tax
+```{r 3_15_11,echo=FALSE}
+par(mfrow=c(2,2))
+lm.fit10=lm(crim~tax)
+summary(lm.fit10)
+plot(lm.fit10)
+```
+
+### Crim against ptratio
+```{r 3_15_12,echo=FALSE}
+par(mfrow=c(2,2))
+lm.fit11=lm(crim~ptratio)
+summary(lm.fit11)
+plot(lm.fit11)
+```
+
+### Crim against black
+```{r 3_15_13,echo=FALSE}
+par(mfrow=c(2,2))
+lm.fit12=lm(crim~black)
+summary(lm.fit12)
+plot(lm.fit12)
+```
+
+### Crim against medv
+```{r 3_15_14,echo=FALSE}
+par(mfrow=c(2,2))
+lm.fit13=lm(crim~medv)
+summary(lm.fit13)
+plot(lm.fit13)
+```
+  
+1.Lstat p value < 2.2e-16, Low standard error, high impact variable  
+  i.e statistically significant. Lower income neighborhoods can tend to have
+  higher crime rates  
+2.Industry p value < 2.2e-16, high impact variable i.e statistically significant.  
+  The higher the non retail business, the higher the crime i.e large city  
+3.Proximity to Charles River (Refactoring boolean variable) p value = 0.2094  
+  Proximity to Charles river is not indicative of crime rate  
+4.Nox level value < 2.2e-16, high impact variable i.e statistically significant  
+  Nox levels may indicate health problems and poverty, driving up crime  
+5.Room count p value = 6.347e-7  
+  Higher room neighborhoods have lower crime due to being upscale  
+6.Age p value = 2.2855e-16, high impact variable i.e statistically significant  
+  Older neighbourhoods can have higher crime rates due to higher population  
+7.dis p value < 2.2e-16, high impact variable i.e statistically significant  
+  As the distance to employment increases, crime might increase due to lack of  
+  employment  
+8.rad p value < 2.2e-16, high impact variable i.e statistically significant  
+  Higher crime rates around radial highways due to illegal activity under said  
+  highways  
+9.Tax value p value < 2.2e-16, high impact variable i.e statistically significant  
+  Higher tax rates indicate wealthier neighborhoods with lower crime  
+10.PT Ratio p value=2.943e-11  
+  Higher Pupil teacher ration increases crime due to reduced access and   
+  effectiveness of education  
+11.black p value < 2.2e-16  
+  High impact variable i.e statistically significant  
+12.Median housing value p value < 2.2e-16,  
+  High impact variable i.e statistically significant  
+  Lower median house value in poorer neighborhoods, higher crime  
+
+## Part B  
+```{r 3_15_15,echo=FALSE}
+par(mfrow=c(2,2))
+lm.fit14=lm(crim~.,data=Boston)
+summary(lm.fit14)
+plot(lm.fit14)
+vif(lm.fit14)
+confint(lm.fit14)
+```
+We can reject the null hypothesis for zn, dis, rad, black, and medv
+at the 5% confidence interval.
+
+## Part C
+```{r 3_15_16,echo=FALSE}
+s.reg = vector('numeric', 0)
+s.reg = c(s.reg, lm.fit2$coef[2]) 
+s.reg = c(s.reg, lm.fit3$coef[2])
+s.reg = c(s.reg, lm.fit4$coef[2])
+s.reg = c(s.reg, lm.fit5$coef[2])
+s.reg = c(s.reg, lm.fit6$coef[2])
+s.reg = c(s.reg, lm.fit7$coef[2])
+s.reg = c(s.reg, lm.fit8$coef[2])
+s.reg = c(s.reg, lm.fit9$coef[2])
+s.reg = c(s.reg, lm.fit10$coef[2])
+s.reg = c(s.reg, lm.fit11$coef[2])
+s.reg = c(s.reg, lm.fit12$coef[2])
+s.reg = c(s.reg, lm.fit1$coef[2])
+s.reg = c(s.reg, lm.fit13$coef[2])
+
+multi.reg = vector('numeric', 0)
+multi.reg = c(multi.reg, lm.fit14$coef)
+multi.reg = multi.reg[-1] 
+plot(s.reg, multi.reg, col = 'blue',main='Single vs Multiple Regression Coefficients',xlab='Single Co-efficient',ylab='Mulitple Co-efficient')
+```
+
+## Part D
+### Crim against lstat
+```{r 3_15_17,echo=FALSE}
+par(mfrow=c(2,2))
+lm.fit15=lm(crim~poly(lstat,3))
+summary(lm.fit15)
+plot(lm.fit15)
+```
+
+### Crim against zn
+```{r 3_15_18,echo=FALSE}
+par(mfrow=c(2,2))
+lm.fit16=lm(crim~poly(zn,3))
+summary(lm.fit16)
+plot(lm.fit16)
+```
+
+### Crim against indus
+```{r 3_15_19,echo=FALSE}
+par(mfrow=c(2,2))
+lm.fit17=lm(crim~poly(indus,3))
+summary(lm.fit17)
+plot(lm.fit17)
+```
+
+### Crim against nox
+```{r 3_15_20,echo=FALSE}
+par(mfrow=c(2,2))
+lm.fit18=lm(crim~poly(nox,3))
+summary(lm.fit18)
+plot(lm.fit18)
+```
+
+### Crim against rm
+```{r 3_15_21,echo=FALSE}
+par(mfrow=c(2,2))
+lm.fit19=lm(crim~poly(rm,3))
+summary(lm.fit19)
+plot(lm.fit19)
+```
+
+### Crim against age
+```{r 3_15_22,echo=FALSE}
+par(mfrow=c(2,2))
+lm.fit20=lm(crim~poly(age,3))
+summary(lm.fit20)
+plot(lm.fit20)
+```
+
+### Crim against dis
+```{r 3_15_23,echo=FALSE}
+par(mfrow=c(2,2))
+lm.fit21=lm(crim~poly(dis,3))
+summary(lm.fit21)
+plot(lm.fit21)
+```
+
+### Crim against rad
+```{r 3_15_24,echo=FALSE}
+par(mfrow=c(2,2))
+lm.fit22=lm(crim~poly(rad,3))
+summary(lm.fit22)
+plot(lm.fit22)
+```
+
+### Crim against tax
+```{r 3_15_25,echo=FALSE}
+par(mfrow=c(2,2))
+lm.fit23=lm(crim~poly(tax,3))
+summary(lm.fit23)
+plot(lm.fit23)
+```
+
+### Crim against ptratio
+```{r 3_15_26,echo=FALSE}
+par(mfrow=c(2,2))
+lm.fit24=lm(crim~poly(ptratio,3))
+summary(lm.fit24)
+plot(lm.fit24)
+```
+
+### Crim against black
+```{r 3_15_27,echo=FALSE}
+par(mfrow=c(2,2))
+lm.fit25=lm(crim~poly(black,3))
+summary(lm.fit25)
+plot(lm.fit25)
+```
+
+### Crim against medv
+```{r 3_15_28,echo=FALSE}
+par(mfrow=c(2,2))
+lm.fit26=lm(crim~poly(medv,3))
+summary(lm.fit26)
+plot(lm.fit26)
+```
+
+
+# Chapter 4 Question 10
+
+## Part A
+```{r 4_10_1,echo=FALSE}
+rm(list=ls())
+library(ISLR)
+attach(Weekly)
+summary(Weekly)
+names(Weekly)
+cor(Weekly[,-9])
+pairs(Weekly)
+plot(Volume~Year,main='Volume/Year',xlab='Year',ylab='Volume')
+```
+High degree of correlation between trading volume and year. Signifies increase 
+in trading volume over the years, then dropping after 2008.
+
+## Part B
+```{r 4_10_2,echo=FALSE}
+glm.fits=glm(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume,data=Weekly,family=binomial)
+summary(glm.fits)
+plot(glm.fits)
+coef(glm.fits)
+summary(glm.fits)$coef
+summary(glm.fits)$coef[,4]
+```
+Lag2 has the lowest P value of 0.0296, and has a positive co-efficient but is the only
+
+p-value outside the 95% confidence interval. Therefore the null hypothesis of
+returns being impacted by Lag2 is rejected.
+
+## Part C
+```{r 4_10_3,echo=FALSE}
+glm.probs=predict(glm.fits,type="response")
+glm.probs [1:10]
+contrasts(Direction)
+glm.pred=rep("Down" ,1089)
+glm.pred[glm.probs >0.5]="Up"
+table(glm.pred,Direction)
+mean(glm.pred==Direction)
+```
+Fraction of correct predictions: 0.561062 i.e (611/1089)
+92% accuracy for up predictions (557/605)
+11% accuracy for down predictions (54/484)
+Training error rate is 43.9% (100-56.1)
+False positive rate is 88.8% (430/484)
+
+## Part D
+```{r 4_10_4,echo=FALSE}
+d.train=(Year<=2008)
+d.test=Weekly[!d.train,]
+glm.fits2=glm(Direction~Lag2,data=Weekly,family=binomial,subset=d.train)
+summary(glm.fits2)
+glm.probs2=predict(glm.fits2,d.test,type="response")
+glm.pred2=rep("Down" ,dim(d.test)[1])
+glm.pred2[glm.probs2>0.5]="Up"
+table(glm.pred2,d.test$Direction)
+mean(glm.pred2==d.test$Direction)
+mean(d.test$Direction=="Up")
+```
+Overall fraction of correct predictions is 62.5%
+
+## Part G
+```{r 4_10_5,echo=FALSE}
+library(class)
+train.X=cbind(Lag2)[d.train,]
+test.X=cbind(Lag2)[!d.train,]
+train.Direction=Weekly[d.train,]$Direction
+set.seed(1)
+knn.pred=knn(data.frame(train.X),data.frame(test.X),train.Direction,k=1)
+table(knn.pred,d.test$Direction)
+mean(knn.pred==d.test$Direction)
+```
+The prediction accuracy is 50%
+
+## Part H
+Logistic regression is better at predicting stock direction data than knn is
+because the prediction accuracy for Logistic Regression is 62.5% while that 
+for knn is 50%
+
+## Part I
+### Logistic regression with Lag1 to Lag4, from 1990 to 2000
+```{r 4_10_6,echo=FALSE}
+d.train2=(Year<2001)
+d.test2=Weekly[!d.train2,]
+glm.fits3=glm(Direction~Lag1+Lag2+Lag3+Lag4, data=Weekly,family=binomial, subset=d.train2)
+summary(glm.fits3)
+glm.probs3=predict(glm.fits3,d.test2,type="response")
+glm.pred3=rep("Down",dim(d.test2)[1])
+glm.pred3[glm.probs3>0.5]="Up"
+table(glm.pred3,d.test2$Direction)
+mean(glm.pred3==d.test2$Direction)
+```
+Prediction accuracy is 53.36%
+
+### Logistic regression with Lag1 and Volume, from 1990 to 2000
+```{r 4_10_7,echo=FALSE}
+glm.fits4=glm(Direction~Lag1+Volume, data=Weekly,family=binomial, subset=d.train2)
+summary(glm.fits4)
+glm.probs4=predict(glm.fits4,d.test2,type="response")
+glm.pred4=rep("Down",dim(d.test2)[1])
+glm.pred4[glm.probs4>0.5]="Up"
+table(glm.pred4,d.test2$Direction)
+mean(glm.pred4==d.test2$Direction)
+```
+Prediction accuracy is 46.257%
+
+Variables with the best prediction accuracy is Lag2 and Volume, using Logistic
+regression
+
+### knn = 5
+```{r 4_10_8,echo=FALSE}
+train.X2=cbind(Lag2)[d.train2,]
+test.X2=cbind(Lag2)[!d.train2,]
+train.Direction2=Weekly[d.train2,]$Direction
+set.seed(1)
+knn.pred2=knn(data.frame(train.X2),data.frame(test.X2),train.Direction2,k=5)
+table(knn.pred2,d.test2$Direction)
+mean(knn.pred2==d.test2$Direction)
+```
+Prediction accuracy 50.8637%
+
+### knn = 7
+```{r 4_10_9,echo=FALSE}
+train.X3=cbind(Lag2)[d.train2,]
+test.X3=cbind(Lag2)[!d.train2,]
+train.Direction3=Weekly[d.train2,]$Direction
+set.seed(1)
+knn.pred3=knn(data.frame(train.X3),data.frame(test.X3),train.Direction3,k=7)
+table(knn.pred3,d.test2$Direction)
+mean(knn.pred3==d.test2$Direction)
+```
+Prediction accuracy 50.4799%
+
+### knn = 10
+```{r 4_10_10,echo=FALSE}
+train.X4=cbind(Lag2)[d.train2,]
+test.X4=cbind(Lag2)[!d.train2,]
+train.Direction4=Weekly[d.train2,]$Direction
+set.seed(1)
+knn.pred4=knn(data.frame(train.X4),data.frame(test.X4),train.Direction4,k=10)
+table(knn.pred4,d.test2$Direction)
+mean(knn.pred4==d.test2$Direction)
+```
+Prediction accuracy 50.6718%
+
+
+# Chapter 6 Problem 9
+
+## Part A
+```{r 6_9_1,echo=FALSE}
+library(ISLR)
+library(glmnet)
+library(pls)
+attach(College)
+set.seed(2)
+College[, -1] = apply(College[, -1], 2, scale)
+train=sample(nrow(College),nrow(College)/2)
+c.train=College[train,]
+c.test=College[-train,]
+dim(c.train)
+```
+Dimensions of the training set are: 388 rows, 18 columns
+
+## Part B
+```{r 6_9_2,echo=FALSE}
+lm.app=lm(Apps~.,data=c.train)
+summary(lm.app)
+pred.apps=predict(lm.app,c.test)
+testMSE=mean((c.test$Apps-pred.apps)^2)
+testMSE
+```
+Test MSE is 0.07301206
+
+## Part C
+```{r 6_9_3,echo=FALSE}
+train.mat=model.matrix(Apps ~ . -1 , data = c.train)
+test.mat=model.matrix(Apps ~ . -1, data = c.test)
+grid=10 ^ seq(4, -2, length = 100)
+m.ridge=cv.glmnet(train.mat, c.train[,'Apps'], alpha = 0, lambda = grid, thresh = 1e-12)
+lambda.best=m.ridge$lambda.min
+lambda.best
+ridge.pred=predict(m.ridge, newx = test.mat, s = lambda.best)
+mean((c.test[, "Apps"] - ridge.pred)^2)
+```
+Lambda value is 0.01
+Test MSE is 0.0704278
+
+## Part D
+```{r 6_9_4,echo=FALSE}
+m.lasso=cv.glmnet(train.mat, c.train[,'Apps'], alpha = 1, lambda = grid, thresh = 1e-12)
+lambda.best=m.lasso$lambda.min
+lambda.best
+
+lasso.pred=predict(m.lasso, newx=test.mat, s=lambda.best)
+mean((c.test[,'Apps'] - lasso.pred)^2)
+
+m.lasso=glmnet(model.matrix(Apps~.-1, data = College), College[, 'Apps'], alpha = 1)
+predict(m.lasso, s = lambda.best, type = "coefficients")
+```
+Lambda value is 0.0231013
+Test MSE is 0.07616939
+
+## Part E
+```{r 6_9_5,echo=FALSE}
+pcr.fit=pcr(Apps~.,data=c.train,scale=TRUE,validation='CV')
+validationplot(pcr.fit, valtype='MSEP')
+pcr.pred=predict(pcr.fit,c.test,ncomp=16)
+mean((c.test[,'Apps']-c(pcr.pred))^2)
+
+```
+MSE is 0.06782283
+M=16 gives us the lowest cross validation error
+
+## Part F
+```{r 6_9_6,echo=FALSE}
+pls.fit=plsr(Apps~.,data=c.train,scale=TRUE,validation='CV')
+validationplot(pls.fit, val.type='MSEP')
+pls.pred = predict(pls.fit, c.test, ncomp=15)
+mean((c.test$Apps-pls.pred)^2)
+```
+MSE is 0.07172876
+M=10 gives us the lowest cross validation error
+
+## Part G
+```{r 6_9_7,echo=FALSE}
+test.avg=mean(c.test$Apps)
+lm.r2=1-mean((pred.apps-c.test$Apps)^2)/mean((test.avg-c.test$Apps)^2)
+#Ridge model
+ridge.r2=1-mean((ridge.pred-c.test$Apps)^2)/mean((test.avg-c.test$Apps)^2)
+#Lasso model
+lasso.r2=1-mean((lasso.pred-c.test$Apps)^2)/mean((test.avg-c.test$Apps)^2)
+#PCR model
+pcr.r2=1-mean((pcr.pred-c.test$Apps)^2)/mean((test.avg-c.test$Apps)^2)
+#PLS model
+pls.r2=1-mean((pls.pred-c.test$Apps)^2)/mean((test.avg-c.test$Apps)^2)
+
+r2.plot=barplot(c(lm.r2,ridge.r2,lasso.r2,pcr.r2,pls.r2),
+                col='blue',names.arg=c('OLS','Ridge','Lasso','PCR','PLS'),main='R-Square')
+```
+
+Ridge MSE = 0.0704278
+Lasso MSE = 0.07616939
+Least Squares MSE = 0.07301206
+PCR MSE = 0.06782283
+PLS MSE = 0.07172876
+Therefore, the best fit model is PCR, however the R squared are marginally
+different.
+
+
+# Chapter 6 Problem 11
+
+## Part A
+```{r 6_11_1,echo=FALSE}
+rm(list=ls())
+library(ISLR)
+library(leaps)
+library(glmnet)
+library(pls)
+library(MASS)
+set.seed(1)
+train=sample(nrow(Boston),nrow(Boston)*0.50)
+boston.train=Boston[train,]
+boston.test=Boston[-train,]
+bostontrain.mat=model.matrix(medv~.,data=boston.train)
+bostontest.mat=model.matrix(medv~.,data=boston.test)
+dim(bostontest.mat)
+```
+Dimensions of the training set is: 253 rows 14 columns
+
+### Best Subset Selection
+```{r 6_11_2,echo=FALSE}
+bestset=regsubsets(medv~.,data=boston.train,nbest=1,nvmax=13)
+boston.test.mat=model.matrix(medv~., data = boston.test, nvmax = 13)
+val.errors=rep(NA, 13)
+for (i in 1:13) {
+  coefi=coef(bestset, id = i)
+  pred=boston.test.mat[, names(coefi)] %*% coefi
+  val.errors[i] <- mean((pred - boston.test$medv)^2)
+}
+plot(val.errors, xlab = 'Predictors', ylab = 'Test MSE', pch = 19, type = 'b',col='blue')
+which.min(val.errors)
+coef(bestset,which.min(val.errors))
+bestset.MSE=val.errors[12]
+bestset.MSE
+```
+MSE is 26.84946
+
+### Lasso 
+```{r 6_11_3,echo=FALSE}
+grid=10^seq(4,-2,length=100)
+lasso.fit=glmnet(bostontrain.mat,boston.train$medv,alpha=0,lambda=grid)
+cv.lasso=cv.glmnet(bostontrain.mat,boston.train$medv,alpha=0,lambda=grid)
+plot(cv.lasso)
+best.lasso=cv.lasso$lambda.min
+best.lasso
+
+lasso.fit1=glmnet(bostontrain.mat,boston.train$medv,alpha=0,lambda=best.lasso)
+coef(lasso.fit1)
+pred.lasso=predict(lasso.fit,s=best.lasso,newx=bostontest.mat)
+lasso.MSE=mean((boston.test$medv-pred.lasso)^2)
+lasso.MSE
+```
+Lambda is 0.01
+MSE is 26.79522
+
+### Ridge
+```{r 6_11_4,echo=FALSE}
+grid=10^seq(4,-2,length=100)
+ridge.fit=glmnet(bostontrain.mat,boston.train$medv,alpha=0,lambda=grid)
+cv.ridge=cv.glmnet(bostontrain.mat,boston.train$medv,alpha=0,lambda=grid)
+plot(cv.ridge)
+best.ridge=cv.ridge$lambda.min
+best.ridge
+
+ridge.fit1=glmnet(bostontrain.mat,boston.train$medv,alpha=0,lambda=best.ridge)
+coef(ridge.fit1)
+pred.ridge=predict(ridge.fit,s=best.ridge,newx=bostontest.mat)
+ridge.MSE<-mean((boston.test$medv-pred.ridge)^2)
+ridge.MSE
+```
+Lambda = 0.01
+Ridge MSE is 26.77717
+
+### PCR
+```{r 6_11_5,echo=FALSE}
+pcr.fit=pcr(medv~.,data=Boston,scale=TRUE,validation='CV')
+summary(pcr.fit)
+validationplot(pcr.fit,val.type='MSEP')
+pcr.fit1=pcr(medv~.,data=boston.train,scale=TRUE,ncomp=5)
+summary(pcr.fit1)
+pcr.fit1$coefficients
+pred.pcr=predict(pcr.fit,boston.test,ncomp=5)
+pcr.MSE=mean((boston.test$medv-pred.pcr)^2)
+pcr.MSE
+```
+Test MSE is 30.16412
+
+## Part B
+The Validation MSEs are as follows:
+Subset: 26.79522
+Lasso: 26.89298
+Ridge: 26.77717
+PCR: 30.16412
+The Ridge model appears to best predict the median housing data, since the MSE
+for Ridge is the lowest. The MSE for lasso is a close second.
+
+## Part C
+The Ridge regression model contains all the variables in the data set.Therefore
+all variables contribute to prediction of the target variable.
+
+# Word Problem 1 - Beauty Data
+
+## Part A
+### With Beauty
+```{r WP_1_1,echo=FALSE}
+rm(list=ls())
+library(tree)
+library(gbm)
+library(kknn)
+library(randomForest)
+
+beaut=read.csv('BeautyData.csv')
+Samples = sample(1:nrow(beaut), nrow(beaut)/2)
+train = beaut[Samples,]
+test = beaut[-Samples,]
+dim(train)
+```
+Dimensions of the training set is: 231 rows 6 columns
+
+#### Decision Trees
+```{r WP_1_2,echo=FALSE}
+set.seed(1)
+tree.b = tree(CourseEvals~., data = train)
+summary(tree.b)
+plot(tree.b)
+text(tree.b, pretty=0)
+yhat = predict(tree.b, newdata = test)
+mean((yhat - test$CourseEvals)^2)
+```
+Test MSE 0.2300245
+
+##### Cross Validation
+```{r WP_1_3,echo=FALSE}
+cv.beaut=cv.tree(tree.b)
+plot(cv.beaut$size,cv.beaut$dev, main = "CV plot",xlab="Nodes", ylab="Error in CV", type="b",)
+cv.beaut
+```
+
+##### Pruning
+```{r WP_1_4,echo=FALSE}
+prune.beaut = prune.tree(tree.b, best = 9)
+plot(prune.beaut)
+text(prune.beaut, pretty=0)
+yhat = predict(prune.beaut, newdata = test)
+mean((yhat-test$CourseEvals)^2)
+##Test MSE is 0.21906
+head(beaut)
+```
+
+#### RandomForest
+```{r WP_1_5,echo=FALSE}
+rf.beaut = randomForest(CourseEvals~.,data=train,mtry=3, importance=TRUE)
+yhat.rf = predict(rf.beaut, newdata=test)
+mean((yhat.rf - test$CourseEvals)^2)
+plot(rf.beaut)
+importance(rf.beaut)
+```
+Random Forest MSE is 0.2276729
+
+#### Bagging
+```{r WP_1_6,echo=FALSE}
+bag.beaut = randomForest(CourseEvals~.,data=train,mtry=5, importance=TRUE)
+yhat.bag = predict(bag.beaut, newdata=test)
+mean((yhat.bag - test$CourseEvals)^2)
+plot(bag.beaut)
+```
+Bagging MSE is 0.2452319
+
+#### Linear regression
+```{r WP_1_7,echo=FALSE}
+lm.fit1=lm(CourseEvals~.,data=train)
+summary(lm.fit1)
+confint(lm.fit1)
+par(mfrow = c(2,2))
+plot(lm.fit1)
+```
+
+```{r WP_1_8,echo=FALSE}
+plot (beaut$BeautyScore,beaut$CourseEvals, xlab="BeautyScore", ylab="Average teaching evaluation")
+abline(lm.fit1,col='red')
+```
+
+### Without Beauty
+#### Decision Tree
+```{r WP_1_9,echo=FALSE}
+tree.b = tree(CourseEvals~.-BeautyScore, data = train)
+summary(tree.b)
+plot(tree.b)
+text(tree.b, pretty=0)
+
+yhat = predict(tree.b, newdata = test)
+mean((yhat - test$CourseEvals)^2)
+```
+Test MSE is 0.2942618
+
+##### Cross Validation
+```{r WP_1_10,echo=FALSE}
+cv.beaut=cv.tree(tree.b)
+plot(cv.beaut$size,cv.beaut$dev, main = "CV plot",xlab="Nodes", ylab="Error in CV", type="b",)
+cv.beaut
+```
+
+##### Pruning
+```{r WP_1_11,echo=FALSE}
+prune.beaut = prune.tree(tree.b, best = 4)
+plot(prune.beaut)
+text(prune.beaut, pretty=0)
+yhat = predict(prune.beaut, newdata = test)
+mean((yhat-test$CourseEvals)^2)
+```
+MSE is 0.2942618
+
+#### Random Forests
+```{r WP_1_12,echo=FALSE}
+bag.beaut = randomForest(CourseEvals~.-BeautyScore,data=train,mtry=4, importance=TRUE)
+yhat.bag = predict(bag.beaut, newdata=test)
+mean((yhat.bag - test$CourseEvals)^2)
+##Test MSE is 0.251646
+```
+Random Forest MSE is 0.2800344
+
+#### Linear regression
+```{r WP_1_13,echo=FALSE}
+lm.fit1=lm(CourseEvals~-BeautyScore,data=train)
+summary(lm.fit1)
+confint(lm.fit1)
+par(mfrow = c(2,2))
+plot(lm.fit1)
+```
+
+Removing the BeautyScore reduces the accuracy of the model by 34.68%. The test
+MSE without the BeautyScore is larger than that with the BeautyScore. The
+second most impactful variable is the gender.
+
+## Part B
+
+Based of human nature, automatic biases and to control biases, have a control
+group and standardize the voice. Can't inherently quantify beauty, each person
+has different standards of beauty i.e subjective variable, therefore the other
+variables didn't have the intended effect. Because the eval cannot be explained
+without beauty, removing beauty out of the equation leads to a more complex
+model.
+
+
+# Word Problem 2 - Midcity Data
+
+```{r WP_2_1,echo=FALSE}
+rm(list=ls())
+
+Midcity=read.csv('MidCity.csv')
+summary(Midcity)
+
+Midcity$Nbhd=factor(Midcity$Nbhd)
+train=Midcity[,-1]
+
+train$Price=scale(train$Price)
+train$Offers=scale(train$Offers)
+train$SqFt=scale(train$SqFt)
+train$Bedrooms=scale(train$Bedrooms)
+train$Bathrooms=scale(train$Bathrooms)
+
+lm.fit=lm(Price~.+Nbhd:Brick,data=train)
+summary(lm.fit)
+confint(lm.fit,level=0.95)
+par(mfrow=c(2,2))
+plot(lm.fit)
+abline(lm.fit)
+```
+
+```{r WP_2_2,echo=FALSE}
+lm.pred=predict(lm.fit,data=train)
+mean((train$Price-lm.pred)^2)
+```
+MSE is 0.1238296
+
+## Part A
+There is a premium for Brick houses since the co-efficient of the slope for
+brick houses is 0.45 and intercept is -0.39. The 95% confidence interval is
+[0.1492,0.7509], which does not include 0.
+
+## Part B
+There is a premium for houses in neighborhood 3 since the co-efficient 
+of the slope for houses in Nbhd3 is 0.6319 and intercept is -0.39. The 95%
+confidence interval is [0.3786,0.8853] which does not include 0.
+
+## Part C
+There is a premium for Brick houses in neighborhood 3 since the co-efficient 
+of the slope for brick houses in Nbhd3 is 0.441 and intercept is -0.39. The 
+95% confidence interval is [0.05,0.837] which does not include 0.
+
+## Part D
+The 95% confidence interval for Nbhd2 co-efficient being 0 is [0.05,0.837] 
+which does include 0. Therefore, we can safely say that there is no impact for
+the Nbhd2 on the regression output, thus allowing Nbhd2 to be combined with
+Nbhd1.
+
+
+# Word Problem 3 - Crime Data
+
+## Part A
+Every city has different circumstances which might lead to an increase in 
+crime, and these circumstances act as variables which might have a positive or
+negative correlation with the crime rate which are not attributable to the 
+policing measures in the city. Therefore, one cannot directly define the
+crime rate with police presence, since there is no definitive way to establish
+that the police rate is directly responsible for change in crime.
+
+## Part B
+In the UPenn research, it is mentioned that the increase in policing rate was
+not a direct result of an increase in crime, but it was due to a random,
+unrelated factor i.e the terrorism threat level in Washington DC. With 
+virtually no change in other variables (i.e number of tourists on an orange  
+alert day),there is a negative correlation between police rate and crime, 
+which is a smaller decrease (-6.046) versus when not controlling for METRO
+ridership(-7.316).
+
+## Part C
+The study decided to control for METRO ridership because the initial hypothesis
+was that METRO ridership would decrease on an orange alert day, which would 
+consequently decrease the number of victims. Therefore, in order to better 
+test the performance of the model, the METRO ridership would have to be fixed 
+to measure the direct impact of policing presence on crime rate. As can be
+seen from the table, the crime rate has a negative coefficient, suggesting
+that there is a decrease in crime rate with an increase in policing rate.
+
+## Part D
+From the first column of table 2, it is visible that the standard error for 
+District 1 is 0.044 whereas that for other districts is higher at 0.455. 
+Therefore, it is safe to conclude that policing rate has a higher impact on 
+crime rate in district 1 because district 1 maybe be a high priority target
+for potential terror attacks, which leads to a higher level of vigilance as 
+compared to the other districts.
+
+
+# Word Problem 4 - Neural Nets
+
+```{r WP_4_1,echo=FALSE}
+rm(list=ls())
+library(nnet)
+library(MASS)
+attach(Boston)
+summary(Boston)
+data=Boston
+
+###standardize the x's
+minv = rep(0,13)
+maxv = rep(0,13)
+datasc=data
+for(i in 1:13) 
+{
+  minv[i] = min(data[[i]])
+  maxv[i] = max(data[[i]])
+  datasc[[i]] = (data[[i]]-minv[i])/(maxv[i]-minv[i])
+}
+```
+
+## Part A
+Using lstat as a variable to predict median housing value
+```{r WP_4_2,echo=FALSE}
+set.seed(2)
+znnlstat = nnet(medv~lstat,datasc,size=3,decay=.1,linout=T)
+summary(znnlstat)
+pred.znnlstat=predict(znnlstat,datasc)
+plot(datasc$lstat,datasc$medv)
+oo = order(datasc$lstat)
+lines(datasc$lstat[oo],pred.znnlstat[oo],col="red",lwd=2)
+abline(lm(medv~lstat,datasc)$coef)
+```
+
+## Part B
+Running prediction for all variables
+```{r WP_4_3,echo=FALSE}
+znn = nnet(medv~.,datasc,size=5,decay=.1,linout=T)
+fznn = predict(znn,datasc)
+zlm = lm(medv~.,datasc)
+fzlm = predict(zlm,datasc)
+temp = data.frame(y=datasc$medv,fnn=fznn,flm=fzlm)
+pairs(temp)
+print(cor(temp))
+```
+
+## Part C
+Size and Decay - four different fits
+```{r WP_4_4,echo=FALSE}
+set.seed(4)
+znn1 = nnet(medv~lstat,datasc,size=4,decay=.05,linout=T)
+znn2 = nnet(medv~lstat,datasc,size=4,decay=.00004,linout=T)
+znn3 = nnet(medv~lstat,datasc,size=25,decay=.05,linout=T)
+znn4 = nnet(medv~lstat,datasc,size=25,decay=.00004,linout=T)
+temp = data.frame(medv = datasc$medv, lstat = datasc$lstat)
+znnf1 = predict(znn1,temp)
+znnf2 = predict(znn2,temp)
+znnf3 = predict(znn3,temp)
+znnf4 = predict(znn4,temp)
+```
+
+Plots
+```{r WP_4_5,echo = FALSE}
+par(mfrow=c(2,2))
+plot(datasc$lstat,datasc$medv)
+lines(datasc$lstat[oo],znnf1[oo],col="red",lwd=2)
+title("size=4, decay=.05")
+plot(datasc$lstat,datasc$medv)
+lines(datasc$lstat[oo],znnf2[oo],col="red",lwd=2)
+title("size=4, decay=.00004")
+plot(datasc$lstat,datasc$medv)
+lines(datasc$lstat[oo],znnf3[oo],col="red",lwd=2)
+title("size = 25, decay = .05")
+plot(datasc$lstat,datasc$medv)
+lines(datasc$lstat[oo],znnf4[oo],col="red",lwd=2)
+title("size = 25, decay = .00004")
+```
+
+## Part D
+Iterative Fitting and Random Starting Values
+```{r WP_4_6, echo=FALSE}
+set.seed(1)
+znn3 = nnet(medv~lstat,datasc,size=50,decay=.5,linout=T)
+znn3 = nnet(medv~lstat,datasc,size=50,decay=.5,linout=T,maxit=20)
+znn3 = nnet(medv~lstat,datasc,size=50,decay=.5,linout=T,maxit=1000)
+
+znnf3 = predict(znn3,temp)
+par(mfrow=c(1,1))
+plot(datasc$lstat,datasc$medv)
+lines(datasc$lstat[oo],znnf3[oo],col="red",lwd=2)
+```
+
+## Part E
+```{r WP_4_7, echo = FALSE}
+print(summary(znn))
+x = datasc$lstat
+y = datasc$medv
+
+z1 = 4.35 -0.24 *x
+z2 = -7.42 +21.41*x
+z3 = -9.93 +13.28*x
+
+f1 = 12.09*exp(z1)/(1+exp(z1))
+f2 = 10.7*exp(z2)/(1+exp(z2))
+f3 = 22.74*exp(z3)/(1+exp(z3))
+
+oo = order(x)
+plot(x,y-12.33)
+
+lines(x[oo],f1[oo],col=2) 
+lines(x[oo],f2[oo],col=3) 
+lines(x[oo],f3[oo],col=4) 
+lines(x[oo],(f1+f2+f3)[oo],col=5)
+
+
+set.seed(10)
+x = runif(1000)
+x = sort(x)
+y = exp(-80*(x-.5)*(x-.5)) + .05*rnorm(1000)
+plot(x,y)
+df = data.frame(y=y,x=x)
+sz = 3
+
+for(i in 1:20) {
+  nnsim = nnet(y~x,df,size=sz,decay = 0.75^i,linout=T,maxit=1000)
+  simfit = predict(nnsim,df)
+  lines(x,simfit,col=i,lwd=3)
+  print(i)
+  readline()
+}
+
+set.seed(10)
+nnsim = nnet(y~x,df,size=3,decay=0.75^12,linout=T,maxit=1000)
+thefit = predict(nnsim,df)
+plot(x,y)
+lines(x,thefit,col="blue",lwd=3,cex.axis=1.5,cex.lab=1.5)
+
+
+z1 =  5.26 - 13.74*x
+z2 = -6.58 + 13.98*x
+z3 = -9.67 + 17.87*x
+
+F = function(x) {return(exp(x)/(1+exp(x)))}
+
+f1 = 2.21*F(z1)
+f2 = 7.61*F(z2)
+f3 = -5.40*F(z3)
+
+
+rx=range(x)
+ry = range(c(f1,f2,f3,y))
+plot(rx,ry,type="n",xlab="x",ylab="fit",cex.axis=2,cex.lab=2)
+points(x,y)
+lines(x,f1,col=1,lwd=2)
+lines(x,f2,col=2,lwd=2)
+lines(x,f3,col=3,lwd=2)
+lines(x,-2.05+f1+f2+f3,col=4,lwd=4)
+```
+
+
+# Word Problem 5 - Project Contribution
+
+**Contributions to project**
+
+In my group project, I began by taking the initiative to search for relevant datasets to explore and model. After searching through Kaggle, my teammates and I settled on an HR analytics project to study the efficacy and budget for data science related trainings. Simultaneously, I started having discussions with each of my teammates separately in order to better understand their grasp on R and ML concepts along with their presentation skills. This proved to be a very impactful step, which allowed us to better streamline our approach. 
+
+We then held a brief meeting, where I used my understanding of my teammates’ abilities to put forth a division of labor plan, which best played to each of my teammate’s strengths. I then began work on a powerpoint presentation early so as to ensure that we weren’t underprepared a day before the presentation. I also went through the Chapter 8 lab in the book step-by-step with my team, to better understand decision trees and began work on modelling the dataset using Random Forests. Additionally, I assisted with Exploratory Data Analysis on the dataset, cleaning the data from relevant blanks and interpreting data insights via pivot tables and Pareto charts to include into the presentation. Once the EDA and modelling was complete, I assisted in cross checking my teammates’ codes within the group to ensure consistency and accuracy throughout our models.
+
+Once time for presentation preparation arrived, my teammate’s and I were able to select our presentation slides and talking points with relative ease due to labour division. However, we made it a point to know each other’s source material thoroughly to ensure that we deliver a smooth and cohesive presentation. I also added relevant visuals to the powerpoint in conjunction with my team, and we were satisfied with the impact the presentation had on the audience due to the combination of above factors. I learned a lot about R modelling and presentation delivery along with teamwork skills in this presentation, which I hope to cultivate throughout my MSBA and carry over into my professional endeavors.
